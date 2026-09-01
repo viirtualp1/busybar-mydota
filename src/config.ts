@@ -1,4 +1,9 @@
-import { type BarConfig, loadBarConfig } from 'busybar-kit/config';
+import {
+  type BarConfig,
+  DEFAULTS as BAR_DEFAULTS,
+  LIMITS as BAR_LIMITS,
+  loadBarConfig,
+} from 'busybar-kit/config';
 import type { TickerStyle } from 'busybar-kit/ticker';
 
 export { loadEnvFile } from 'busybar-kit/config';
@@ -12,6 +17,8 @@ export type Config = BarConfig & {
   gsiHeartbeatSec: number;
   steamId: string;
   accountPollMs: number;
+  frameMs: number;
+  requestTimeoutMs: number;
   demo: boolean;
   sounds: boolean;
   tickerStyle: TickerStyle;
@@ -83,6 +90,12 @@ export function loadConfig(
         'ACCOUNT_POLL_MS',
         DEFAULTS.accountPollMs,
         LIMITS.accountPollMs,
+      ),
+      frameMs: number('FRAME_MS', BAR_DEFAULTS.frameMs, BAR_LIMITS.frameMs),
+      requestTimeoutMs: number(
+        'REQUEST_TIMEOUT_MS',
+        BAR_DEFAULTS.requestTimeoutMs,
+        BAR_LIMITS.requestTimeoutMs,
       ),
       demo: argv.includes('--demo') || read('DEMO') === '1',
       sounds: read('SOUNDS') !== '0',
