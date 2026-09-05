@@ -49,7 +49,12 @@ export const EVENT_TEXT = {
   kill: (gained: number) => (gained > 1 ? `${gained} kills` : 'Kill'),
   streak: (streak: number) =>
     STREAK_WORDS[Math.min(10, streak)] ?? `${streak} kill streak`,
-  death: () => 'You died',
+  /**
+   * Wordless on purpose. The dead screen is the respawn countdown on its own,
+   * and a 7s ticker outlived a short respawn — so "You died" could sit there
+   * after you were already back up. The event still colours the LED and rings.
+   */
+  death: () => '',
   level: (level: number) => `Level ${level}`,
   towerLost: () => 'Our tower fell',
   towerTaken: () => 'Their tower fell',

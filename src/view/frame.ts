@@ -20,7 +20,11 @@ import {
   formatTimer,
 } from 'busybar-kit/format';
 import { fittingChars } from 'busybar-kit/device';
-import { tickerLine as renderTickerLine, type TickerStyle } from 'busybar-kit/ticker';
+import {
+  tickerLine as renderTickerLine,
+  tickerLineLooping,
+  type TickerStyle,
+} from 'busybar-kit/ticker';
 
 export type CellTone = 'normal' | 'good' | 'bad' | 'gold';
 
@@ -35,6 +39,10 @@ export type MyFrame = {
   mode: FrameMode;
   bigText: string;
   bigColor: string;
+  /** Font for `bigText`. A whole sentence only fits in the tiny one. */
+  bigFont: 'tiny' | 'bold';
+  /** The front shows `bigText` alone, centred both ways, and nothing else. */
+  bigOnly: boolean;
   clockText: string;
   scoreText: string;
   worthText: string;
@@ -106,6 +114,8 @@ function base(options: FrameOptions): MyFrame {
     mode: 'idle',
     bigText: '',
     bigColor: COLORS.white,
+    bigFont: 'bold',
+    bigOnly: false,
     clockText: '',
     scoreText: '',
     worthText: '',
@@ -169,31 +179,39 @@ function offlineFrame(options: FrameOptions): MyFrame {
   return frame;
 }
 
+export const WAITING_TEXT = 'waiting for the game';
+
+/**
+ * Out of a match and back in the menu. Text only, on purpose: the old screen
+ * put today's record up in the big font, where a "4-2" read as a live team
+ * score and a menu that never changes read as a frozen one.
+ */
 function idleFrame(options: FrameOptions): MyFrame {
   const frame = base(options);
   const account = options.account;
   frame.mode = 'idle';
+  frame.bigText = tickerLineLooping(
+    options.tickerStyle,
+    WAITING_TEXT,
+    options.tickerChars,
+    options.nowEpochMs,
+  );
+  frame.bigFont = 'tiny';
+  frame.bigColor = COLORS.muted;
+  frame.bigOnly = true;
 
   if (!account) {
-    frame.bigText = 'IDLE';
-    frame.bigColor = COLORS.dim;
-    frame.clockText = 'MENU';
-    frame.backHeader = 'In the menu';
+    frame.backHeader = 'Waiting for the game';
     frame.backSub = options.note;
 
     return frame;
   }
 
   const last = account.last;
-  frame.bigText = `${account.today.wins}-${account.today.losses}`;
-  frame.bigColor =
-    account.today.wins > account.today.losses ? COLORS.radiant : COLORS.white;
-  frame.clockText = 'TODAY';
-  frame.scoreText = account.streak
-    ? `${account.streak.kind}${account.streak.length}`
-    : '';
-  frame.backHeader = account.personaName || 'In the menu';
-  frame.backSub = account.rank || 'unranked';
+  frame.backHeader = 'Waiting for the game';
+  frame.backSub = [account.personaName, account.rank || 'unranked']
+    .filter(Boolean)
+    .join('  ');
   frame.backRows = rows(
     [
       cell('TODAY', formatRecord(account.today.wins, account.today.losses)),
@@ -255,10 +273,13 @@ function liveFrame(match: MatchState, options: FrameOptions): MyFrame {
   frame.theirFillColor = theirs.fill;
   frame.myFill = myFillWidth(myScore(match), theirScore(match));
 
+  // Dead is its own screen: the respawn countdown alone, centred on the strip.
+  // The word for it is already obvious from the colour and the back panel.
   frame.bigText = dead
-    ? `DEAD ${Math.max(1, hero.respawnSec)}`
+    ? formatTimer(Math.max(1, hero.respawnSec))
     : formatKda(player?.kills ?? 0, player?.deaths ?? 0, player?.assists ?? 0);
   frame.bigColor = dead ? COLORS.danger : COLORS.white;
+  frame.bigOnly = dead;
   frame.clockText = match.paused ? 'PAUSE' : formatClock(match.clockSec);
   frame.scoreText = `${myScore(match)}-${theirScore(match)}`;
   frame.worthText = player ? formatGold(player.netWorth ?? player.gold) : '';

@@ -140,12 +140,17 @@ function write(name: string, data: Buffer) {
 function printAscii(current: MyFrame) {
   console.log(`\n[${current.mode}]`);
   console.log('--- front 72x16 ---');
-  console.log(`  ${current.bigText.padStart(10)}`);
-  console.log(
-    current.tickerText
-      ? `  ticker: ${current.tickerText}`
-      : `  ${current.clockText.padEnd(7)}${current.scoreText.padEnd(7)}${current.worthText}`,
-  );
+  if (current.bigOnly) {
+    // The big line owns the strip; nothing else is drawn on it.
+    console.log(`  ${current.bigText.padStart(10)}  (centred, alone)`);
+  } else {
+    console.log(`  ${current.bigText.padStart(10)}`);
+    console.log(
+      current.tickerText
+        ? `  ticker: ${current.tickerText}`
+        : `  ${current.clockText.padEnd(7)}${current.scoreText.padEnd(7)}${current.worthText}`,
+    );
+  }
   const filled = Math.round(current.myFill / 3);
   console.log(
     `  band: ${'#'.repeat(filled)}${'.'.repeat(Math.max(0, 24 - filled))}  (${current.myFill}/72px mine)`,

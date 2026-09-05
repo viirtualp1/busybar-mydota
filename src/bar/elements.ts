@@ -13,9 +13,14 @@ const TONE_COLORS: Record<CellTone, string> = {
   gold: COLORS.gold,
 };
 
+const MID_X = Math.floor(FRONT.width / 2);
+const MID_Y = Math.floor(FRONT.height / 2);
+
 export function frontElements(frame: MyFrame): AnyElement[] {
   const fill = frame.myFill;
-  const ticking = frame.tickerText.length > 0;
+  // A solo screen owns the whole strip; nothing else competes for the row.
+  const solo = frame.bigOnly;
+  const ticking = !solo && frame.tickerText.length > 0;
 
   return [
     band('band-mine', 0, fill, frame.showBands ? frame.myFillColor : COLORS.transparent),
@@ -29,17 +34,17 @@ export function frontElements(frame: MyFrame): AnyElement[] {
       id: 'big',
       type: 'text',
       text: frame.bigText || ' ',
-      font: 'bold',
+      font: frame.bigFont,
       color: frame.bigText ? frame.bigColor : COLORS.transparent,
       display: 'front',
-      align: 'top_mid',
-      x: Math.floor(FRONT.width / 2),
-      y: FRONT.topY,
+      align: solo ? 'center' : 'top_mid',
+      x: MID_X,
+      y: solo ? MID_Y : FRONT.topY,
       timeout: 0,
     },
     bottomText(
       'clock',
-      frame.clockText,
+      solo ? '' : frame.clockText,
       ticking,
       COLORS.clock,
       'top_left',
@@ -48,16 +53,16 @@ export function frontElements(frame: MyFrame): AnyElement[] {
     ),
     bottomText(
       'score',
-      frame.scoreText,
+      solo ? '' : frame.scoreText,
       ticking,
       COLORS.white,
       'top_mid',
-      Math.floor(FRONT.width / 2),
+      MID_X,
       FRONT.scoreWidth,
     ),
     bottomText(
       'worth',
-      frame.worthText,
+      solo ? '' : frame.worthText,
       ticking,
       COLORS.gold,
       'top_right',
@@ -72,13 +77,21 @@ export function frontElements(frame: MyFrame): AnyElement[] {
       color: ticking ? COLORS.ticker : COLORS.transparent,
       display: 'front',
       align: 'top_mid',
-      x: Math.floor(FRONT.width / 2),
+      x: MID_X,
       y: FRONT.bottomY,
       timeout: 0,
     },
   ];
 }
 
+/**
+ * `width` is deliberately not set on these. In the Bar's API it declares a
+ * fixed-width *label* (the box the scroll_* fields animate), and the anchor
+ * applies to that box while the text sits at its left edge — so a `top_mid`
+ * label lands left of centre and a `top_right` one stops short of the edge.
+ * Without it the anchor applies to the text itself; `clipToWidth` still keeps
+ * each field inside its own slot.
+ */
 function bottomText(
   id: string,
   text: string,
@@ -100,7 +113,6 @@ function bottomText(
     align,
     x,
     y: FRONT.bottomY,
-    width,
     timeout: 0,
   };
 }

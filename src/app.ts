@@ -32,7 +32,11 @@ export type AppDeps = {
 const BAR_RETRY_MS = 2000;
 const REPEAT_WARNING_MS = 30_000;
 
-/** How long a finished game stays on the Bar after Dota drops back to the menu. */
+/**
+ * How long a finished game stays on the Bar when Dota goes quiet on us — closed
+ * mid-scoreboard, or alt-tabbed away. A deliberate return to the menu clears it
+ * instead, so leaving a game shows the waiting screen rather than a stale score.
+ */
 export const RESULT_HOLD_MS = 90_000;
 
 /** OpenDota needs a moment to ingest a match before it shows up. */
@@ -58,6 +62,7 @@ export class App {
   private running = false;
   private loops: Promise<void>[] = [];
   private warnings = new Map<string, { message: string; at: number }>();
+  private blanked = false;
 
   constructor(deps: AppDeps) {
     this.config = deps.config;
@@ -73,11 +78,13 @@ export class App {
     if (this.config.steamId) {
       this.useSteamId(this.config.steamId);
     }
+    // Subscribed here rather than in start(): tracking what Dota reports does
+    // not depend on the Bar being reachable, and it keeps the wiring testable.
+    this.gsi.onState = (state) => this.handleState(state);
   }
 
   async start() {
     this.running = true;
-    this.gsi.onState = (state) => this.handleState(state);
     await this.connectBar();
     if (!this.running) {
       return;
@@ -128,11 +135,17 @@ export class App {
 
     if (state.winner !== null && inMatch(state)) {
       if (this.finished?.matchId !== state.matchId) {
-        this.accountDueAt = Date.now() + POST_MATCH_REFRESH_MS;
+        this.accountDueAt = state.updatedAtMs + POST_MATCH_REFRESH_MS;
       }
       this.finished = state;
-      this.finishedAt = Date.now();
+      // When Dota reported it, not when we got round to it: the same thing in
+      // production, and the only reading that survives an injected clock.
+      this.finishedAt = state.updatedAtMs;
     } else if (inMatch(state) && this.finished?.matchId !== state.matchId) {
+      this.finished = null;
+    } else if (!inMatch(state)) {
+      // Back in the menu, so the game was left behind rather than cut off:
+      // hold nothing, and let the waiting screen take over straight away.
       this.finished = null;
     }
 
@@ -146,7 +159,8 @@ export class App {
       return;
     }
 
-    this.logger.info(`[${event.kind}] ${event.text}`);
+    // Some events carry no wording for the Bar; the kind alone is the log line.
+    this.logger.info(event.text ? `[${event.kind}] ${event.text}` : `[${event.kind}]`);
     if (this.config.sounds) {
       void this.display.playEvent(event).catch(() => {
         /* sound is optional */
@@ -226,24 +240,39 @@ export class App {
     while (this.running) {
       const now = this.now();
       try {
-        await this.display.push(
-          buildFrame(this.view(), {
-            heroes: this.heroes,
-            maxRows: BACK.maxRows,
-            ticker: this.ticker.active(now),
-            nowEpochMs: Date.now(),
-            account: this.accountStats,
-            note: this.note,
-            tickerStyle: this.config.tickerStyle,
-            tickerChars: this.config.tickerChars,
-          }),
-        );
+        const match = this.view();
+        if (inMatch(match)) {
+          this.blanked = false;
+          await this.display.push(
+            buildFrame(match, {
+              heroes: this.heroes,
+              maxRows: BACK.maxRows,
+              ticker: this.ticker.active(now),
+              nowEpochMs: Date.now(),
+              account: this.accountStats,
+              note: this.note,
+              tickerStyle: this.config.tickerStyle,
+              tickerChars: this.config.tickerChars,
+            }),
+          );
+        } else {
+          await this.blank();
+        }
       } catch (error) {
         this.warnRepeated('draw', `BUSY Bar draw failed: ${errorMessage(error)}`);
       }
 
       await this.sleep(this.config.frameMs);
     }
+  }
+
+  private async blank() {
+    if (this.blanked) {
+      return;
+    }
+    await this.display.blank();
+    this.blanked = true;
+    this.logger.info('Idle — display released');
   }
 
   private warnRepeated(key: string, message: string) {

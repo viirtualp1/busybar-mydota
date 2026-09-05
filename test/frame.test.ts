@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { FRONT } from '../src/bar/layout';
+import { FONT_WIDTH, FRONT } from '../src/bar/layout';
 import { OFFLINE } from '../src/domain/state';
-import { buildFrame } from '../src/view/frame';
+import { buildFrame, WAITING_TEXT } from '../src/view/frame';
 import { account, atGameSecond, frameOptions, NOW, valueOf } from './helpers';
 
 test('nothing from Dota means the setup screen, not a blank one', () => {
@@ -14,23 +14,46 @@ test('nothing from Dota means the setup screen, not a blank one', () => {
   assert.ok(frame.tickerText.length > 0, 'the front says what it is waiting for');
 });
 
-test('the menu shows the account, not an empty match', () => {
+test('the menu says it is waiting, and keeps the account off the big line', () => {
   const menu = { ...OFFLINE, present: true, phase: 'menu' as const, updatedAtMs: NOW };
   const frame = buildFrame(menu, frameOptions({ account: account() }));
 
   assert.equal(frame.mode, 'idle');
-  assert.equal(frame.bigText, '4-2');
-  assert.equal(frame.clockText, 'TODAY');
+  assert.ok(frame.bigOnly, 'the waiting line owns the whole strip');
+  assert.ok(
+    WAITING_TEXT.startsWith(frame.bigText),
+    `"${frame.bigText}" should be a page of "${WAITING_TEXT}"`,
+  );
+  // A bare "4-2" in the big font is what used to read as a live team score.
+  assert.equal(frame.clockText, '');
+  assert.equal(frame.scoreText, '');
+  assert.equal(frame.backHeader, 'Waiting for the game');
   assert.equal(valueOf(frame.backRows, 'STREAK'), 'W3');
   assert.equal(valueOf(frame.backRows, 'LAST'), 'WIN');
 });
 
-test('the menu without account stats still says something', () => {
+test('the menu without account stats still says what it is waiting for', () => {
   const menu = { ...OFFLINE, present: true, phase: 'menu' as const, updatedAtMs: NOW };
-  const frame = buildFrame(menu, frameOptions());
+  const frame = buildFrame(menu, frameOptions({ note: 'GSI http://127.0.0.1:3080/' }));
 
   assert.equal(frame.mode, 'idle');
-  assert.equal(frame.bigText, 'IDLE');
+  assert.ok(frame.bigOnly);
+  assert.equal(frame.backHeader, 'Waiting for the game');
+  assert.equal(frame.backSub, 'GSI http://127.0.0.1:3080/');
+});
+
+test('the waiting line reads out the whole sentence over time', () => {
+  const menu = { ...OFFLINE, present: true, phase: 'menu' as const, updatedAtMs: NOW };
+  const seen = new Set<string>();
+  for (let step = 0; step < 12; step += 1) {
+    seen.add(buildFrame(menu, frameOptions({ nowEpochMs: NOW + step * 1000 })).bigText);
+  }
+
+  assert.ok(seen.size > 1, 'the line pages rather than sitting still');
+  assert.ok(
+    [...seen].every((page) => WAITING_TEXT.includes(page.trim())),
+    `every page should come from "${WAITING_TEXT}": ${[...seen].join(' | ')}`,
+  );
 });
 
 test('a live game puts my KDA on the front and my stats on the back', () => {
@@ -46,11 +69,12 @@ test('a live game puts my KDA on the front and my stats on the back', () => {
   assert.ok(frame.showBands);
 });
 
-test('being dead replaces the KDA with the respawn timer', () => {
+test('being dead shows the respawn timer alone, with no wording around it', () => {
   const frame = buildFrame(atGameSecond(8 * 60 + 10), frameOptions());
 
   assert.equal(frame.mode, 'dead');
-  assert.match(frame.bigText, /^DEAD \d+$/);
+  assert.match(frame.bigText, /^\d+$/);
+  assert.ok(frame.bigOnly, 'the timer owns the strip, centred both ways');
   assert.ok(valueOf(frame.backRows, 'DEAD'));
   assert.ok(valueOf(frame.backRows, 'BUY'));
   assert.equal(valueOf(frame.backRows, 'HP'), null);
@@ -61,7 +85,7 @@ test('the big line always fits the 72px front', () => {
   for (const second of seconds) {
     const frame = buildFrame(atGameSecond(second), frameOptions());
     assert.ok(
-      frame.bigText.length * 8 <= FRONT.width,
+      frame.bigText.length * FONT_WIDTH[frame.bigFont] <= FRONT.width,
       `"${frame.bigText}" is too wide for the front display`,
     );
   }
