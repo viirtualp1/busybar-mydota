@@ -11,6 +11,9 @@ export const FRONT = {
   clockWidth: 24,
   scoreWidth: 24,
   worthWidth: 20,
+  // The dead screen swaps the three-slot bottom row for these two.
+  buybackWidth: 44,
+  goldWidth: 24,
 } as const;
 
 export const BACK = {

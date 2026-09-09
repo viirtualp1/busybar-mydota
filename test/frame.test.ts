@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { FONT_WIDTH, FRONT } from '../src/bar/layout';
 import { OFFLINE } from '../src/domain/state';
 import { buildFrame, WAITING_TEXT } from '../src/view/frame';
+import { formatGold } from 'busybar-kit/format';
 import { account, atGameSecond, frameOptions, NOW, valueOf } from './helpers';
 
 test('nothing from Dota means the setup screen, not a blank one', () => {
@@ -69,15 +70,85 @@ test('a live game puts my KDA on the front and my stats on the back', () => {
   assert.ok(frame.showBands);
 });
 
-test('being dead shows the respawn timer alone, with no wording around it', () => {
+test('being dead shows the countdown, and under it the buyback and my gold', () => {
   const frame = buildFrame(atGameSecond(8 * 60 + 10), frameOptions());
 
   assert.equal(frame.mode, 'dead');
   assert.match(frame.bigText, /^\d+$/);
-  assert.ok(frame.bigOnly, 'the timer owns the strip, centred both ways');
+  assert.ok(frame.buybackText, 'the buyback shares the strip with the countdown');
+  assert.ok(frame.goldText, 'so does the gold it has to be paid with');
+  // The clock row would land on the same pixels, so it stands down.
+  assert.equal(frame.clockText, '');
+  assert.equal(frame.scoreText, '');
+  assert.equal(frame.worthText, '');
   assert.ok(valueOf(frame.backRows, 'DEAD'));
   assert.ok(valueOf(frame.backRows, 'BUY'));
+  assert.ok(valueOf(frame.backRows, 'GOLD'));
   assert.equal(valueOf(frame.backRows, 'HP'), null);
+});
+
+test('the buyback reads as ready, short of gold, or on cooldown', () => {
+  const state = atGameSecond(8 * 60 + 10);
+  const cost = state.hero!.buybackCost;
+
+  const short = buildFrame(
+    { ...state, player: { ...state.player!, gold: cost - 1 } },
+    frameOptions(),
+  );
+  assert.equal(short.buybackTone, 'short');
+  assert.equal(short.buybackText, `BUY ${formatGold(cost)}`);
+
+  const ready = buildFrame(
+    { ...state, player: { ...state.player!, gold: cost } },
+    frameOptions(),
+  );
+  assert.equal(ready.buybackTone, 'ready');
+  assert.equal(ready.buybackText, `BUY ${formatGold(cost)}`);
+
+  const waiting = buildFrame(
+    {
+      ...state,
+      hero: { ...state.hero!, buybackCooldownSec: 72 },
+      player: { ...state.player!, gold: cost * 2 },
+    },
+    frameOptions(),
+  );
+  assert.equal(waiting.buybackTone, 'cooldown');
+  assert.equal(waiting.buybackText, 'CD 1:12', 'a price and a timer must not look alike');
+});
+
+test('the back keeps the price even while the buyback is on cooldown', () => {
+  const state = atGameSecond(8 * 60 + 10);
+  const cost = state.hero!.buybackCost;
+  const waiting = buildFrame(
+    { ...state, hero: { ...state.hero!, buybackCooldownSec: 72 } },
+    frameOptions(),
+  );
+
+  assert.equal(valueOf(waiting.backRows, 'BUY'), formatGold(cost));
+  assert.equal(valueOf(waiting.backRows, 'CD'), '1:12');
+
+  // Ready again, and the cooldown cell costs nothing because it is not there.
+  const ready = buildFrame(state, frameOptions());
+  assert.equal(valueOf(ready.backRows, 'CD'), null);
+});
+
+test('the dead bottom row fits the 72px front alongside the gold', () => {
+  const state = atGameSecond(8 * 60 + 10);
+  const frame = buildFrame(
+    {
+      ...state,
+      hero: { ...state.hero!, buybackCost: 12_345 },
+      player: { ...state.player!, gold: 23_456 },
+    },
+    frameOptions(),
+  );
+  const used = (frame.buybackText.length + frame.goldText.length) * FONT_WIDTH.tiny;
+
+  assert.ok(
+    used <= FRONT.width - 4,
+    `"${frame.buybackText}" and "${frame.goldText}" collide`,
+  );
 });
 
 test('the big line always fits the 72px front', () => {

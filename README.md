@@ -17,9 +17,16 @@ own Dota client — so this reads that, through **Game State Integration**.
 - **Your KDA, big and centred**, in the bold font. Not the team score: the team
   score is two small digits, and it is your own line that you actually want to
   read from the sofa.
-- **Dead instead**: `DEAD 25`. When you die the big line becomes the respawn
-  countdown in red, and goes back to the KDA when you spawn. It is the single
-  most useful number on the display and it is impossible to miss.
+- **Dead instead**: the big line becomes a bare respawn countdown in red — no
+  wording, because red digits over a dead hero need none — and goes back to the
+  KDA when you spawn.
+- **The buyback, under the countdown.** While you are dead the bottom row drops
+  the clock and answers the only question left: `BUY 785` on the left with your
+  **gold in hand** on the right. Green when you can buy back this second, red
+  when you are off cooldown but short of gold, and `CD 1:12` in grey while the
+  buyback itself is still on cooldown. The label changes with the state on
+  purpose — a bare `42` reads as a price, and `BUY 42` at 42 seconds of
+  cooldown is a lie you would act on.
 - **The background is the score**, split by kill share — your side's colour from
   the left, theirs from the right. Radiant green, Dire red, matching the game,
   so a losing Dire game is a mostly-green strip and you know without reading.
@@ -45,8 +52,10 @@ TWR  9-7        |  RAX  6-6
 ```
 
 While you are dead the `HP`/`MP` row becomes `DEAD 25` and `BUY 785` — the
-buyback price, green once you can actually afford it, or the cooldown if you
-cannot buy back yet.
+buyback price, green once you can actually afford it. `BUY` is always the price;
+a `CD` row appears next to it while the buyback is on cooldown, and takes up no
+space at all the rest of the time. `GOLD` is already on the sheet above it, so
+the price and what you can pay it with are two lines apart.
 
 **Between games**
 

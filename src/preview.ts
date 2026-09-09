@@ -148,7 +148,9 @@ function printAscii(current: MyFrame) {
     console.log(
       current.tickerText
         ? `  ticker: ${current.tickerText}`
-        : `  ${current.clockText.padEnd(7)}${current.scoreText.padEnd(7)}${current.worthText}`,
+        : current.buybackText || current.goldText
+          ? `  ${current.buybackText.padEnd(11)}${current.goldText}  (${current.buybackTone})`
+          : `  ${current.clockText.padEnd(7)}${current.scoreText.padEnd(7)}${current.worthText}`,
     );
   }
   const filled = Math.round(current.myFill / 3);

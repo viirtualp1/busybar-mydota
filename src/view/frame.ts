@@ -28,6 +28,9 @@ import {
 
 export type CellTone = 'normal' | 'good' | 'bad' | 'gold';
 
+/** Can I buy back this second, am I just short of gold, or is it on cooldown? */
+export type BuybackTone = 'ready' | 'short' | 'cooldown';
+
 export type BackCell = { label: string; value: string; tone: CellTone };
 
 export type BackRow = { left: BackCell | null; right: BackCell | null };
@@ -46,6 +49,11 @@ export type MyFrame = {
   clockText: string;
   scoreText: string;
   worthText: string;
+  /** Dead only, and shown instead of the clock row: the buyback price or its cooldown. */
+  buybackText: string;
+  buybackTone: BuybackTone;
+  /** Dead only: gold in hand, to read against `buybackText`. */
+  goldText: string;
   myFill: number;
   myFillColor: string;
   theirFillColor: string;
@@ -119,6 +127,9 @@ function base(options: FrameOptions): MyFrame {
     clockText: '',
     scoreText: '',
     worthText: '',
+    buybackText: '',
+    buybackTone: 'cooldown',
+    goldText: '',
     myFill: Math.round(FRONT.width / 2),
     myFillColor: COLORS.radiantFill,
     theirFillColor: COLORS.direFill,
@@ -273,16 +284,24 @@ function liveFrame(match: MatchState, options: FrameOptions): MyFrame {
   frame.theirFillColor = theirs.fill;
   frame.myFill = myFillWidth(myScore(match), theirScore(match));
 
-  // Dead is its own screen: the respawn countdown alone, centred on the strip.
-  // The word for it is already obvious from the colour and the back panel.
+  // Dead is its own screen: the respawn countdown on top, and under it the one
+  // decision left to make — buy back or wait. The word "dead" is already obvious
+  // from the colour, so the pixels go to the price and the gold instead.
   frame.bigText = dead
     ? formatTimer(Math.max(1, hero.respawnSec))
     : formatKda(player?.kills ?? 0, player?.deaths ?? 0, player?.assists ?? 0);
   frame.bigColor = dead ? COLORS.danger : COLORS.white;
-  frame.bigOnly = dead;
-  frame.clockText = match.paused ? 'PAUSE' : formatClock(match.clockSec);
-  frame.scoreText = `${myScore(match)}-${theirScore(match)}`;
-  frame.worthText = player ? formatGold(player.netWorth ?? player.gold) : '';
+
+  if (dead) {
+    const buyback = buybackState(match);
+    frame.buybackText = buyback.text;
+    frame.buybackTone = buyback.tone;
+    frame.goldText = player ? formatGold(player.gold) : '';
+  } else {
+    frame.clockText = match.paused ? 'PAUSE' : formatClock(match.clockSec);
+    frame.scoreText = `${myScore(match)}-${theirScore(match)}`;
+    frame.worthText = player ? formatGold(player.netWorth ?? player.gold) : '';
+  }
 
   frame.backHeader = heroTitle(match, options);
   frame.backSub = [
@@ -300,17 +319,15 @@ function liveRows(match: MatchState, options: FrameOptions, dead: boolean): Back
   const hero = match.hero;
   const mineBuildings = buildingsOf(match, match.side);
   const theirBuildings = buildingsOf(match, enemySide(match.side));
-  const canBuyback =
-    hero !== null &&
-    player !== null &&
-    hero.buybackCooldownSec === 0 &&
-    hero.buybackCost > 0 &&
-    player.gold >= hero.buybackCost;
+  const buyback = buybackState(match);
 
   const survival: (BackCell | null)[] = dead
     ? [
         cell('DEAD', formatTimer(hero?.respawnSec ?? 0), 'bad'),
-        cell('BUY', buybackValue(match), canBuyback ? 'good' : 'normal'),
+        // Always the price; the cooldown gets its own cell, which is missing
+        // — and so takes up no row — whenever the buyback is actually ready.
+        cell('BUY', buyback.cost, buyback.tone === 'ready' ? 'good' : 'bad'),
+        cell('CD', buyback.cooldown, 'bad'),
       ]
     : [
         cell(
@@ -347,15 +364,36 @@ function liveRows(match: MatchState, options: FrameOptions, dead: boolean): Back
   );
 }
 
-function buybackValue(match: MatchState) {
+/**
+ * The buyback in one line. The label changes with the state rather than the
+ * number alone: a bare `42` reads as a price, and `BUY 42` at 42 seconds of
+ * cooldown would be a lie worth acting on.
+ */
+export function buybackState(match: MatchState): {
+  text: string;
+  tone: BuybackTone;
+  cost: string;
+  cooldown: string;
+} {
   const hero = match.hero;
+  const player = match.player;
   if (!hero || hero.buybackCost <= 0) {
-    return '';
+    return { text: '', tone: 'cooldown', cost: '', cooldown: '' };
   }
 
-  return hero.buybackCooldownSec > 0
-    ? formatTimer(hero.buybackCooldownSec)
-    : formatGold(hero.buybackCost);
+  const cost = formatGold(hero.buybackCost);
+  if (hero.buybackCooldownSec > 0) {
+    const cooldown = formatTimer(hero.buybackCooldownSec);
+
+    return { text: `CD ${cooldown}`, tone: 'cooldown', cost, cooldown };
+  }
+
+  return {
+    text: `BUY ${cost}`,
+    tone: player !== null && player.gold >= hero.buybackCost ? 'ready' : 'short',
+    cost,
+    cooldown: '',
+  };
 }
 
 function resultFrame(match: MatchState, options: FrameOptions): MyFrame {

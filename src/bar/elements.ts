@@ -1,7 +1,7 @@
 import type { TextElement } from '@busy-app/busy-lib';
 import { band, type AnyElement } from 'busybar-kit/elements';
 import { COLORS } from '../view/colors';
-import type { BackCell, CellTone, MyFrame } from '../view/frame';
+import type { BackCell, BuybackTone, CellTone, MyFrame } from '../view/frame';
 import { BACK, clipToWidth, FRONT, rowY } from './layout';
 
 export type { AnyElement };
@@ -11,6 +11,12 @@ const TONE_COLORS: Record<CellTone, string> = {
   good: COLORS.radiant,
   bad: COLORS.dire,
   gold: COLORS.gold,
+};
+
+const BUYBACK_COLORS: Record<BuybackTone, string> = {
+  ready: COLORS.radiant,
+  short: COLORS.dire,
+  cooldown: COLORS.muted,
 };
 
 const MID_X = Math.floor(FRONT.width / 2);
@@ -68,6 +74,26 @@ export function frontElements(frame: MyFrame): AnyElement[] {
       'top_right',
       FRONT.width - 1,
       FRONT.worthWidth,
+    ),
+    // The dead screen's own bottom row. It shares the slot with the clock row
+    // above, and only one of the two is ever filled in.
+    bottomText(
+      'buyback',
+      solo ? '' : frame.buybackText,
+      ticking,
+      BUYBACK_COLORS[frame.buybackTone],
+      'top_left',
+      1,
+      FRONT.buybackWidth,
+    ),
+    bottomText(
+      'gold',
+      solo ? '' : frame.goldText,
+      ticking,
+      COLORS.gold,
+      'top_right',
+      FRONT.width - 1,
+      FRONT.goldWidth,
     ),
     {
       id: 'ticker',

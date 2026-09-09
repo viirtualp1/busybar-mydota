@@ -166,3 +166,13 @@ function statusLine(stats: GsiStats, state: MatchState) {
     'Dota 2 posts here. Nothing to see in a browser.',
   ].join('\n');
 }
+
+/** Node reports a port someone else already holds as EADDRINUSE on `listen`. */
+export function isAddressInUse(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'EADDRINUSE'
+  );
+}

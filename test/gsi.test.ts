@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildCfg, parseLibraryFolders } from '../src/gsi/install';
-import { GsiServer } from '../src/gsi/server';
+import { GsiServer, isAddressInUse } from '../src/gsi/server';
 import { demoPayload } from '../src/gsi/demo';
 import { inMatch } from '../src/domain/state';
 import { NOW } from './helpers';
@@ -140,4 +140,18 @@ test('malformed json is rejected without taking the server down', async () => {
   } finally {
     await gsi.stop();
   }
+});
+
+test('a taken port is recognised, so the reason can be said out loud', () => {
+  assert.ok(
+    isAddressInUse(
+      Object.assign(new Error('listen EADDRINUSE'), {
+        code: 'EADDRINUSE',
+      }),
+    ),
+  );
+  assert.ok(!isAddressInUse(Object.assign(new Error('nope'), { code: 'EACCES' })));
+  assert.ok(!isAddressInUse(new Error('plain')));
+  assert.ok(!isAddressInUse(null));
+  assert.ok(!isAddressInUse('EADDRINUSE'));
 });

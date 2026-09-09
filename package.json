@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "description": "Your own live Dota 2 game on BUSY Bar, via Game State Integration",
   "license": "MIT",
+  "author": "viirtualp1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/viirtualp1/busybar-mydota.git"
+  },
+  "bugs": {
+    "url": "https://github.com/viirtualp1/busybar-mydota/issues"
+  },
+  "homepage": "https://github.com/viirtualp1/busybar-mydota#readme",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -11,6 +20,7 @@
   "files": [
     "dist",
     "README.md",
+    "LICENSE",
     ".env.example"
   ],
   "keywords": [
@@ -39,11 +49,12 @@
     "start": "npm run build && node dist/index.js",
     "shot": "tsx src/preview.ts",
     "gsi:install": "tsx src/gsi-install.ts",
-    "gsi:check": "tsx src/gsi-check.ts"
+    "gsi:check": "tsx src/gsi-check.ts",
+    "prepublishOnly": "npm run check && npm run build"
   },
   "dependencies": {
     "@busy-app/busy-lib": "^0.18.0",
-    "busybar-kit": "file:../busybar-kit"
+    "busybar-kit": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

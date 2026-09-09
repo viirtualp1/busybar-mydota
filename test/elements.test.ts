@@ -58,33 +58,55 @@ test('the score sits on the middle of the strip and the gold on its right edge',
 });
 
 test('each bottom field stays inside its own slot', () => {
-  const front = texts(LIVE);
-  const budget: Record<string, number> = {
-    clock: FRONT.clockWidth,
-    score: FRONT.scoreWidth,
-    worth: FRONT.worthWidth,
-  };
+  const budgets: [number, Record<string, number>][] = [
+    [LIVE, { clock: FRONT.clockWidth, score: FRONT.scoreWidth, worth: FRONT.worthWidth }],
+    [DEAD, { buyback: FRONT.buybackWidth, gold: FRONT.goldWidth }],
+  ];
 
-  for (const [id, width] of Object.entries(budget)) {
-    const element = front.get(id);
-    assert.ok(
-      (element?.text.length ?? 0) * FONT_WIDTH.tiny <= width,
-      `"${element?.text ?? ''}" overflows the ${id} slot`,
-    );
+  for (const [second, budget] of budgets) {
+    const front = texts(second);
+    for (const [id, width] of Object.entries(budget)) {
+      const element = front.get(id);
+      assert.ok(
+        (element?.text.length ?? 0) * FONT_WIDTH.tiny <= width,
+        `"${element?.text ?? ''}" overflows the ${id} slot`,
+      );
+    }
   }
 });
 
-test('the dead screen is the timer alone, centred on both axes', () => {
+test('the dead screen is the timer over the buyback and the gold', () => {
   const front = texts(DEAD);
 
   const big = front.get('big');
-  assert.equal(big?.align, 'center');
+  assert.equal(big?.align, 'top_mid');
   assert.equal(big?.x, MID_X);
-  assert.equal(big?.y, Math.floor(FRONT.height / 2));
+  assert.equal(big?.y, FRONT.topY);
   assert.match(big?.text ?? '', /^\d+$/);
 
+  const buyback = front.get('buyback');
+  assert.equal(buyback?.align, 'top_left');
+  assert.equal(buyback?.x, 1);
+  assert.equal(buyback?.y, FRONT.bottomY);
+  assert.match(buyback?.text ?? '', /^(BUY|CD) /);
+
+  const gold = front.get('gold');
+  assert.equal(gold?.align, 'top_right');
+  assert.equal(gold?.x, FRONT.width - 1);
+  assert.equal(gold?.y, FRONT.bottomY);
+  assert.ok((gold?.text ?? '').trim().length > 0, 'the gold in hand is drawn');
+
+  // The clock row shares those pixels, so it has to stand down.
   for (const id of ['clock', 'score', 'worth', 'ticker']) {
     assert.equal(front.get(id)?.text.trim(), '', `${id} should be blank while dead`);
+  }
+});
+
+test('the buyback and the gold stand down once I am alive again', () => {
+  const front = texts(LIVE);
+
+  for (const id of ['buyback', 'gold']) {
+    assert.equal(front.get(id)?.text.trim(), '', `${id} should be blank while alive`);
   }
 });
 

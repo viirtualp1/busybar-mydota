@@ -8,7 +8,7 @@ import { gsiEndpoint, loadConfig, loadEnvFile } from './config';
 import { HeroCatalog } from './dota/heroes';
 import { demoPayload } from './gsi/demo';
 import { CFG_DIR, CFG_NAME, findDotaDir } from './gsi/install';
-import { GsiServer } from './gsi/server';
+import { GsiServer, isAddressInUse } from './gsi/server';
 
 loadEnvFile();
 const { config, warnings } = loadConfig();
@@ -41,7 +41,22 @@ if (!config.demo) {
   }
 }
 
-await gsi.start();
+// The process-level handlers below are registered after this point, so a failure
+// here would otherwise surface as a bare node:net stack trace — and the usual
+// cause is mundane enough to deserve a sentence instead.
+try {
+  await gsi.start();
+} catch (error) {
+  console.error(`Cannot listen on ${gsiEndpoint(config)}: ${errorMessage(error)}`);
+  if (isAddressInUse(error)) {
+    console.error(
+      'Another busybar-mydota is probably still running and holding the port. ' +
+        'Stop it, or set GSI_PORT to a free one — and re-run `npm run gsi:install` ' +
+        'if you change it, so Dota posts to the new address.',
+    );
+  }
+  process.exit(1);
+}
 
 const bar = createBusyBar({
   addr: config.busyAddr,
