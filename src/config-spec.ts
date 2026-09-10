@@ -8,6 +8,7 @@ export default defineConfigSpec({
       kind: 'env',
       file: '.env',
       title: 'Settings',
+      reloads: 'restart',
       fields: [
         {
           key: 'STEAM_ID',
@@ -15,7 +16,7 @@ export default defineConfigSpec({
           type: 'text',
           placeholder: '76561198000000000',
           hint: 'For the between-games screen. Dota reports it once you are in a match',
-          validate: matching(/^\d+$/, 'digits only — the 17-digit SteamID64'),
+          rules: [matching('^\\d+$', 'digits only — the 17-digit SteamID64')],
         },
         {
           key: 'SOUNDS',
@@ -39,7 +40,7 @@ export default defineConfigSpec({
           type: 'number',
           fallback: '3080',
           hint: 'Changing this needs `gsi:install` run again',
-          validate: integerIn(1024, 65_535),
+          rules: [integerIn(1024, 65_535)],
         },
         {
           key: 'GSI_TOKEN',
@@ -53,21 +54,21 @@ export default defineConfigSpec({
           label: 'How often OpenDota is asked',
           type: 'number',
           advanced: true,
-          validate: integerIn(60_000, 3_600_000),
+          rules: [integerIn(60_000, 3_600_000)],
         },
         {
           key: 'GSI_STALE_MS',
           label: 'Silence before Dota counts as gone',
           type: 'number',
           advanced: true,
-          validate: integerIn(5000, 300_000),
+          rules: [integerIn(5000, 300_000)],
         },
         {
           key: 'TICKER_CHARS',
           label: 'Characters on the ticker line',
           type: 'number',
           advanced: true,
-          validate: integerIn(8, 40),
+          rules: [integerIn(8, 40)],
         },
       ],
     },
