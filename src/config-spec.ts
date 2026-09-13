@@ -44,10 +44,14 @@ export default defineConfigSpec({
         },
         {
           key: 'GSI_TOKEN',
-          label: 'Shared secret with Dota',
+          label: 'Password for Dota’s updates',
           type: 'secret',
           advanced: true,
-          hint: 'Optional. Rejects packets that do not carry it',
+          hint: 'Dota sends it with every update, so nothing else on this computer can feed the app a fake game',
+          help:
+            'Make one up — any string. There is nothing to sign up for and nothing to copy from anywhere.\n\n' +
+            '`gsi:install` writes it into the config file Dota reads, so run that again after changing it, then restart Dota. Until then Dota keeps sending the old one and every update is turned away.\n\n' +
+            'Left empty, the app takes updates from anything that posts to its port. On a computer only you use, that is fine.',
         },
         {
           key: 'ACCOUNT_POLL_MS',
